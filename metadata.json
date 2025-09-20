@@ -1,0 +1,5 @@
+{
+  "name": "AI Exam Proctor",
+  "description": "An application for teachers to generate question papers using AI, or upload existing papers, share them with students, and get answer sheets automatically graded by AI.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isTeacher() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+    }
+
+    match /exams/{examId} {
+      allow read: if request.auth != null;
+      allow create: if isTeacher();
+      allow update: if false; // immutable once created (simplify integrity)
+      allow delete: if isTeacher();
+    }
+    match /submissions/{submissionId} {
+      allow read: if request.auth != null; // restrict to authenticated
+      allow create: if request.auth != null &&
+        request.resource.data.keys().hasAll(['id','examId','studentName','submittedAt']) &&
+        request.resource.data.id == submissionId &&
+        request.resource.data.examId is string &&
+        request.resource.data.studentName is string &&
+        request.resource.data.submittedAt is string &&
+        // Optional new metadata fields if present
+        (!('fileName' in request.resource.data) || request.resource.data.fileName is string) &&
+        (!('fileSize' in request.resource.data) || request.resource.data.fileSize is int && request.resource.data.fileSize < 15 * 1024 * 1024) &&
+        (!('fileMime' in request.resource.data) || request.resource.data.fileMime is string) &&
+        (!('fileHash' in request.resource.data) || request.resource.data.fileHash is string && request.resource.data.fileHash.size() == 64) &&
+        // Disallow embedding large base64 blobs over 900KB if still using legacy field
+        (!('answerSheetImage' in request.resource.data) || request.resource.data.answerSheetImage.size() < 900000) &&
+        // result must not be supplied at create time (AI evaluation occurs asynchronously)
+        !('result' in request.resource.data);
+
+      allow update: if request.auth != null &&
+        // Only allow setting the result after creation OR legacy migration removing answerSheetImage
+        request.resource.data.keys().hasAll(['id','examId','studentName','submittedAt']) &&
+        resource.data.id == submissionId &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.examId == resource.data.examId &&
+        request.resource.data.studentName == resource.data.studentName &&
+        request.resource.data.submittedAt == resource.data.submittedAt &&
+        // Prevent changing file hash / name after creation
+        (!('fileHash' in resource.data) || request.resource.data.fileHash == resource.data.fileHash) &&
+        (!('fileName' in resource.data) || request.resource.data.fileName == resource.data.fileName) &&
+        (!('fileSize' in resource.data) || request.resource.data.fileSize == resource.data.fileSize) &&
+        (!('fileMime' in resource.data) || request.resource.data.fileMime == resource.data.fileMime) &&
+        // Allow adding result now (with structure checks)
+        (!('result' in request.resource.data) || (
+          request.resource.data.result.totalScore is number &&
+          request.resource.data.result.overallFeedback is string &&
+          request.resource.data.result.answers is list &&
+          request.resource.data.result.answers.size() <= 200
+        )) &&
+        // Size guard on legacy base64 field if retained
+        (!('answerSheetImage' in request.resource.data) || request.resource.data.answerSheetImage.size() < 900000);
+
+      allow delete: if isTeacher();
+    }
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId &&
+        request.resource.data.keys().hasOnly(['uid','role','displayName','email','geminiApiKey']) &&
+        request.resource.data.uid == userId &&
+        request.resource.data.role in ['teacher','student'];
+      allow update: if request.auth != null && request.auth.uid == userId &&
+        // Only permit modifying displayName and geminiApiKey; role & uid immutable; email optional mirror
+        request.resource.data.keys().hasOnly(['uid','role','displayName','email','geminiApiKey']) &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.email == resource.data.email &&
+        // displayName or geminiApiKey may change
+        true;
+      allow delete: if (request.auth != null && request.auth.uid == userId) || isTeacher();
+    }
+  }
+}

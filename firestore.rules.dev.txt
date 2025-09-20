@@ -1,0 +1,24 @@
+# Development Firestore Rules (reference file, not auto-deployed)
+# Deploy manually via: firebase deploy --only firestore:rules
+# Replace with stricter auth-based rules for production.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /exams/{examId} {
+      allow read: if true;
+      allow create: if request.resource.data.id == examId;
+      allow update, delete: if false; // tighten later
+    }
+    match /submissions/{submissionId} {
+      allow read: if true;
+      allow create: if request.resource.data.id == submissionId;
+      allow update, delete: if false;
+    }
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
