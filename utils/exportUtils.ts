@@ -13,6 +13,8 @@ export function exportExamResultsToExcel(exam: Exam, submissions: Submission[]) 
     const baseRow: any = {
       SubmissionID: sub.id,
       Student: sub.studentName,
+      ScannedName: sub.result?.detectedStudentName ?? '',
+      ScannedRollNumber: sub.result?.detectedRollNumber ?? '',
       SubmittedAt: new Date(sub.submittedAt).toLocaleString(),
       TotalMarks: exam.totalMarks,
       AwardedScore: sub.result?.totalScore ?? '',

@@ -45,6 +45,14 @@ const gradingSchema = {
             type: Type.STRING,
             description: "A summary of the student's overall performance, highlighting strengths and areas for improvement."
         },
+        detectedStudentName: {
+            type: Type.STRING,
+            description: "The student's name EXACTLY as written on the answer sheet (trim whitespace). Empty string if illegible or not present."
+        },
+        detectedRollNumber: {
+            type: Type.STRING,
+            description: "The roll / registration number EXACTLY as written on the answer sheet. Empty string if not present."
+        },
         answers: {
             type: Type.ARRAY,
             description: "A detailed breakdown of the grading for each question.",
@@ -213,7 +221,10 @@ export const gradeSubmission = async (apiKey: string | undefined, questions: Que
             4.  Calculate the total score. The maximum possible score is ${totalMarks}.
             5.  Provide constructive feedback for each answer.
             6.  Provide a summary of the student's overall performance.
-            7.  Return your evaluation in the specified JSON format.
+            7.  Additionally, using ONLY your built-in multimodal vision (no external OCR assumptions), extract the STUDENT NAME and ROLL / REGISTRATION NUMBER if they are visibly written on the sheet.
+                - Copy text EXACTLY as it appears (preserve casing, spelling, punctuation). Do NOT normalize or guess.
+                - If a field is absent, cropped, or unreadable, return an empty string for that field. Never invent values.
+            8.  Return your evaluation in the specified JSON format.
             `
         };
 

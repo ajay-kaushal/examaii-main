@@ -20,6 +20,16 @@ export interface GradedResult {
     score: number;
     feedback: string;
   }>;
+  /**
+   * (Experimental) Name the AI model visually detected on the answer sheet image.
+   * Empty string or undefined if not clearly legible / not present.
+   */
+  detectedStudentName?: string;
+  /**
+   * (Experimental) Roll / registration number the AI model visually detected on the sheet.
+   * Empty string or undefined if not found.
+   */
+  detectedRollNumber?: string;
 }
 
 export interface Submission {
